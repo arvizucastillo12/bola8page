@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Administrativo - Bola 8</title>
+  <link rel="stylesheet" href="admin.css">
+  <link rel="icon" href="favicon-admin.png" type="image/png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div id="login-container">
+    <form id="login-form">
+      <h2>Acceso Administrativo</h2>
+      <input type="password" id="password" placeholder="Ingresa la contraseña" required>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <div id="admin-panel" style="display: none;">
+    <header>
+      <h1>Panel Administrativo</h1>
+      <p>Control interno del negocio - Solo personal autorizado</p>
+      <div style="margin-top: 1rem;">
+        <a href="index.html" style="color: #f5c518; text-decoration: underline;">Volver a página principal</a>
+      </div>
+    </header>
+
+    <main>
+      <!-- Subida de archivo -->
+      <section>
+        <h2>📂 Visualización de Reportes</h2>
+        <div class="file-upload">
+          <label for="fileInput">Seleccionar archivo Excel o CSV</label>
+          <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+          <div class="file-name" id="fileName">Ningún archivo seleccionado</div>
+          <!-- <button class="clear-file" onclick="limpiarArchivo()">❌ Limpiar archivo</button> -->
+        </div>
+        <div id="sheetSelector"></div>
+        <div class="print-btn">
+          <button onclick="window.print()">🖨️ Imprimir hoja</button>
+        </div>
+        <div id="excelPreview" class="excel-preview">
+          <p style="color: #aaa;">Selecciona un archivo para visualizarlo aquí.</p>
+        </div>
+      </section>
+
+      <!-- Inventario simple -->
+      <section>
+        <h2>📦 Inventario Actual</h2>
+        <ul>
+          <li>Mesas de billar: 5</li>
+          <li>Juegos de bolas: 6</li>
+          <li>Tacos en buen estado: 12</li>
+          <li>Sillas disponibles: 20</li>
+          <li>Stock de comida: ✅ suficiente</li>
+        </ul>
+      </section>
+
+      <!-- Gastos fijos -->
+      <section>
+        <h2>💸 Gastos Fijos Mensuales</h2>
+        <ul>
+          <li>Sueldos: $8,000</li>
+          <li>Renta del local: $6,000</li>
+          <li>Luz, agua e internet: $2,500</li>
+          <li>Reposición de insumos: $1,500</li>
+        </ul>
+      </section>
+
+      <!-- Ingresos -->
+      <section>
+        <h2>📈 Ingresos Aproximados</h2>
+        <ul>
+          <li>Renta de mesas semanal: $3,500</li>
+          <li>Ventas de comida semanal: $4,200</li>
+          <li>Ingreso mensual estimado: $30,000</li>
+        </ul>
+      </section>
+
+      <!-- Notas del administrador -->
+      <section>
+        <h2>📝 Notas del Administrador</h2>
+        <textarea rows="6" cols="60" placeholder="Escribe aquí tus observaciones, pedidos o recordatorios..."></textarea>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2025 Bola 8 - Acceso Interno</p>
+    </footer>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('login-form');
+    const loginContainer = document.getElementById('login-container');
+    const adminPanel = document.getElementById('admin-panel');
+
+    loginForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      if (password === 'bola8admin') {
+        loginContainer.style.display = 'none';
+        adminPanel.style.display = 'block';
+      } else {
+        alert('Contraseña incorrecta.');
+      }
+    });
+
+    const fileInput = document.getElementById('fileInput');
+    const fileNameDisplay = document.getElementById('fileName');
+    const preview = document.getElementById('excelPreview');
+    const sheetSelector = document.getElementById('sheetSelector');
+
+    function cerrarVista() {
+      preview.innerHTML = '<p style="color: #aaa;">Selecciona un archivo para visualizarlo aquí.</p>';
+      sheetSelector.style.display = 'none';
+    }
+
+    function limpiarArchivo() {
+      fileInput.value = "";
+      fileNameDisplay.textContent = "Ningún archivo seleccionado";
+      cerrarVista();
+    }
+
+    fileInput.addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      fileNameDisplay.textContent = file ? file.name : 'Ningún archivo seleccionado';
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        if (file.name.endsWith('.csv')) {
+          sheetSelector.style.display = 'none';
+          const text = e.target.result;
+          const rows = text.split('\n').map(row => row.split(','));
+          let html = '<button class="close-preview" onclick="cerrarVista()">✖</button><table><thead><tr>';
+          rows[0].forEach(col => html += `<th>${col}</th>`);
+          html += '</tr></thead><tbody>';
+          for (let i = 1; i < rows.length; i++) {
+            html += '<tr>' + rows[i].map(col => `<td>${col}</td>`).join('') + '</tr>';
+          }
+          html += '</tbody></table>';
+          preview.innerHTML = html;
+        } else {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          sheetSelector.style.display = 'block';
+          sheetSelector.innerHTML = '<label>Seleccionar hoja: <select id="sheetList"></select></label>';
+
+          const sheetList = document.getElementById('sheetList');
+          sheetList.innerHTML = '';
+          workbook.SheetNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            sheetList.appendChild(option);
+          });
+
+          const renderSheet = (name) => {
+            const html = '<button class="close-preview" onclick="cerrarVista()">✖</button>' + XLSX.utils.sheet_to_html(workbook.Sheets[name]);
+            preview.innerHTML = html;
+          };
+
+          renderSheet(workbook.SheetNames[0]);
+
+          sheetList.addEventListener('change', function () {
+            renderSheet(this.value);
+          });
+        }
+      };
+
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file);
+      } else {
+        reader.readAsArrayBuffer(file);
+      }
+    });
+  </script>
+</body>
+</html>
